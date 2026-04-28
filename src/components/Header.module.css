@@ -1,0 +1,218 @@
+.header {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: var(--sidebar-width);
+  height: var(--header-height);
+  background: rgba(248, 250, 252, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: var(--z-header);
+  transition: left var(--transition-slow);
+  gap: 12px;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Hamburger — hidden on desktop */
+.hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.hamburger:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  flex: 1;
+  max-width: 480px;
+}
+
+.searchBox:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.searchIcon {
+  font-size: 0.9rem;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.searchInput::placeholder {
+  color: var(--text-muted);
+}
+
+.kbd {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 0px;
+  color: var(--text-muted);
+  font-family: monospace;
+  flex-shrink: 0;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.iconBtn {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  font-size: 1.1rem;
+  transition: all var(--transition-fast);
+  color: var(--text-secondary);
+}
+
+.iconBtn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.userMenu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 4px 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--transition-fast);
+}
+
+.userMenu:hover {
+  border-color: var(--border-color);
+  background: var(--bg-elevated);
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: white;
+  flex-shrink: 0;
+}
+
+.userInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.userName {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.userRole {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.logoutBtn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 1rem;
+  transition: all var(--transition-fast);
+}
+
+.logoutBtn:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* ── Mobile ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .header {
+    left: 0 !important; /* always full width on mobile */
+    padding: 0 12px;
+  }
+
+  /* Show hamburger on mobile */
+  .hamburger {
+    display: flex;
+  }
+
+  /* Hide search box on mobile (too cramped) */
+  .searchBox {
+    display: none;
+  }
+
+  /* Hide name/role text, keep avatar + logout */
+  .userInfo {
+    display: none;
+  }
+
+  /* Tighten user menu on mobile */
+  .userMenu {
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .right {
+    gap: 8px;
+  }
+}

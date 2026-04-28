@@ -1,0 +1,229 @@
+.widgetContainer {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.fab {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #8b5cf6;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  z-index: 10;
+}
+
+.fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+}
+
+.chatWindow {
+  width: 360px;
+  height: 500px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 0px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: bottom right;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: scale(0.9) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.chatHeader {
+  background: #8b5cf6;
+  padding: 16px;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.headerTitle {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.closeButton {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.closeButton:hover {
+  opacity: 1;
+}
+
+.chatMessages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-secondary);
+}
+
+.message {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 0px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.message.user {
+  background: #3b82f6;
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+
+.message.assistant {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+
+.prewrittenContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.prewrittenBtn {
+  background: var(--bg-card);
+  border: 1px solid var(--primary-light);
+  color: var(--primary);
+  padding: 8px 12px;
+  border-radius: 0px;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.prewrittenBtn:hover {
+  background: var(--primary-light);
+  color: white;
+}
+
+.chatInputArea {
+  padding: 14px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: 10px;
+}
+
+.chatInput {
+  flex: 1;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0px;
+  padding: 10px 14px;
+  color: var(--text-primary);
+  outline: none;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+
+.chatInput:focus {
+  border-color: var(--primary);
+}
+
+.sendButton {
+  background: var(--primary);
+  color: white;
+  border: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.sendButton:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.sendButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.typingIndicator {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+  align-items: center;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.dot:nth-child(1) { animation-delay: -0.32s; }
+.dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+@media (max-width: 600px) {
+  .chatWindow {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    margin-bottom: 0;
+    border-radius: 0;
+  }
+  
+  .widgetContainer {
+    bottom: 16px;
+    right: 16px;
+  }
+}

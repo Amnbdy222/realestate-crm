@@ -1,0 +1,243 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+}
+
+.bgDecor {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.orb1, .orb2, .orb3 {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.4;
+}
+
+.orb1 {
+  width: 400px;
+  height: 400px;
+  background: var(--primary);
+  top: -100px;
+  right: -100px;
+  animation: float 8s ease-in-out infinite;
+}
+
+.orb2 {
+  width: 300px;
+  height: 300px;
+  background: var(--accent);
+  bottom: -80px;
+  left: -80px;
+  animation: float 10s ease-in-out infinite reverse;
+}
+
+.orb3 {
+  width: 200px;
+  height: 200px;
+  background: var(--success);
+  top: 50%;
+  left: 50%;
+  animation: float 12s ease-in-out infinite;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 40px;
+  animation: scaleIn 0.5s ease;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.logoIcon {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 16px;
+  background: var(--primary);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  box-shadow: 0 8px 24px var(--primary-glow);
+  animation: glow 3s ease-in-out infinite;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.errorMsg {
+  padding: 10px 14px;
+  background: var(--danger-bg);
+  border: 1px solid rgba(255, 107, 107, 0.2);
+  border-radius: var(--radius-md);
+  color: var(--danger-light);
+  font-size: 0.85rem;
+}
+
+.successMsg {
+  padding: 10px 14px;
+  background: var(--success-bg);
+  border: 1px solid rgba(0, 184, 148, 0.2);
+  border-radius: var(--radius-md);
+  color: var(--success-light);
+  font-size: 0.85rem;
+}
+
+.submitBtn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 14px;
+  font-size: 1rem;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* OTP Input */
+.otpContainer {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.otpInput {
+  width: 50px;
+  height: 58px;
+  text-align: center;
+  font-size: 1.4rem;
+  font-weight: 700;
+  font-family: var(--font-display);
+  background: var(--bg-input);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+  caret-color: var(--primary);
+}
+
+.otpInput:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+  transform: translateY(-2px);
+}
+
+.otpFilled {
+  border-color: var(--primary-light);
+  background: rgba(79, 70, 229, 0.05);
+}
+
+/* Email Badge */
+.emailBadge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.changeBtn {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary-light);
+  transition: color var(--transition-fast);
+}
+
+.changeBtn:hover {
+  color: var(--accent);
+}
+
+/* Hint */
+.hint {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Resend Row */
+.resendRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.toggleBtn {
+  color: var(--primary-light);
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: color var(--transition-fast);
+}
+
+.toggleBtn:hover {
+  color: var(--accent);
+}
+
+.toggleBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.copyright {
+  position: relative;
+  z-index: 1;
+  margin-top: 24px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
