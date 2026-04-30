@@ -8,71 +8,90 @@ export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
   const [userProfile, setUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
 
-    const initializeAuth = async () => {
+    const fetchProfile = async (userId) => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const currentUser = session?.user ?? null;
-        if (mounted) setUser(currentUser);
-        
-        if (currentUser) {
-          const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
-          if (mounted && data) setUserProfile(data);
-        }
-      } catch (err) {
-        console.error("Auth initialization error:", err);
-      } finally {
-        if (mounted) setLoading(false);
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+        if (mounted && data) setUserProfile(data);
+      } catch {
+        // non-critical — app works without profile
       }
     };
 
-    initializeAuth();
+    // Hard safety: if INITIAL_SESSION never fires (Supabase unreachable,
+    // storage corruption, etc.), force loading=false after 6s so the app
+    // doesn't hang on a spinner forever.
+    const safetyTimer = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 6000);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-      
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      
-      // Only re-fetch profile on explicit SIGN_IN, avoid blocking UI on tab focus (TOKEN_REFRESHED, etc)
-      if (event === 'SIGNED_IN' && currentUser) {
-        try {
-          const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
-          if (mounted && data) setUserProfile(data);
-        } catch (err) {
-          console.error('Failed to fetch profile on sign in', err);
+    // Manual initial check to ensure session is captured if onAuthStateChange is slow
+    const checkInitialSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (mounted && session) {
+          const currentUser = session.user;
+          setUser(currentUser);
+          await fetchProfile(currentUser.id);
+          setLoading(false);
+          clearTimeout(safetyTimer);
         }
-      } else if (event === 'SIGNED_OUT') {
-        setUserProfile(null);
-        // Do not force setLoading(false) here, we don't want to mess with navigation state
+      } catch (err) {
+        console.error('Initial session check failed', err);
       }
-    });
+    };
+
+    checkInitialSession();
+
+    // onAuthStateChange fires INITIAL_SESSION immediately on mount,
+    // which gives us the current session without a separate getSession call.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          if (currentUser) {
+            await fetchProfile(currentUser.id);
+          }
+          // Always clear loading after the session is resolved
+          clearTimeout(safetyTimer);
+          if (mounted) setLoading(false);
+        } else if (event === 'SIGNED_OUT') {
+          setUserProfile(null);
+          clearTimeout(safetyTimer);
+          if (mounted) setLoading(false);
+        }
+      }
+    );
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, []);
 
-  // Send OTP to email
   const sendOtp = async (email) => {
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        shouldCreateUser: true, // auto sign-up if new user
-      },
+      options: { shouldCreateUser: true },
     });
     if (error) throw error;
     return data;
   };
 
-  // Verify OTP code
   const verifyOtp = async (email, token) => {
     const { data, error } = await supabase.auth.verifyOtp({
       email,
@@ -83,12 +102,8 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  // Sign in with password
   const signInWithPassword = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     return data;
   };

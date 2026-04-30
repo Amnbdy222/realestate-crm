@@ -18,7 +18,7 @@ export async function POST(req) {
     const data = await req.json();
     const { stats, recentLeads, upcomingFollowups } = data;
 
-    const prompt = `You are an expert Real Estate CRM AI Assistant.
+    const prompt = `You are an expert DealBook AI Assistant.
 Analyze the following CRM data and provide 3-4 short, actionable bullet points of advice or insights for the real estate agent today. 
 Be concise, direct, and use emojis. Do not include any introductory or concluding remarks, just the bullet points.
 

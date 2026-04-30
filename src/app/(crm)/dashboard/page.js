@@ -2,76 +2,149 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { Users, Handshake, IndianRupee, TrendingUp, Globe, UserPlus, Smartphone, Footprints, Phone, Megaphone, Building, ClipboardList, Crosshair, Sparkles, ArrowRight } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import styles from './dashboard.module.css';
 
+// ─── Module-level cache ───────────────────────────────────────────────────────
+// Persists across client-side navigation so cached data shows instantly.
+let dashboardFetchLock = false;
+let dashboardCache = null; // { stats, recentLeads, upcomingFollowups, recentProperties }
+
+// ─── Helper: compute derived stats from raw data ─────────────────────────────
+function computeDashboard(leads = [], deals = [], followups = [], properties = []) {
+  const wonLeads    = leads.filter(l => l.status === 'won').length;
+  const activeDeals = deals.filter(d => !['closed_won', 'closed_lost'].includes(d.stage));
+  const pipelineValue  = activeDeals.reduce((sum, d) => sum + Number(d.deal_value || 0), 0);
+  const conversionRate = leads.length > 0 ? ((wonLeads / leads.length) * 100).toFixed(1) : 0;
+  return {
+    stats: { totalLeads: leads.length, activeDeals: activeDeals.length, pipelineValue, conversionRate },
+    recentLeads: leads.slice(0, 6),
+    upcomingFollowups: followups,
+    recentProperties: properties,
+  };
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
-  const [stats, setStats] = useState({ totalLeads: 0, activeDeals: 0, pipelineValue: 0, conversionRate: 0 });
-  const [recentLeads, setRecentLeads] = useState([]);
-  const [upcomingFollowups, setUpcomingFollowups] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [recentProperties, setRecentProperties] = useState([]);
-  const [aiInsights, setAiInsights] = useState(null);
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const toast = useToast();
+
+  // Initialise from cache so navigating back shows data instantly — no skeleton
+  const [stats, setStats]                         = useState(dashboardCache?.stats      ?? { totalLeads: 0, activeDeals: 0, pipelineValue: 0, conversionRate: 0 });
+  const [recentLeads, setRecentLeads]             = useState(dashboardCache?.recentLeads ?? []);
+  const [upcomingFollowups, setUpcomingFollowups] = useState(dashboardCache?.upcomingFollowups ?? []);
+  const [recentProperties, setRecentProperties]   = useState(dashboardCache?.recentProperties  ?? []);
+  const [aiInsights, setAiInsights]               = useState(null);
+  const [isGeneratingAI, setIsGeneratingAI]       = useState(false);
+  // Only show skeleton on first-ever load (cache empty); subsequent navigations show stale data immediately
+  const [loading, setLoading] = useState(!dashboardCache);
+
+  // ── Apply a full data set to state + cache ──────────────────────────────────
+  const applyData = (leads, deals, followups, properties, isMounted) => {
+    if (!isMounted) return;
+    const d = computeDashboard(leads, deals, followups, properties);
+    dashboardCache = d;
+    setStats(d.stats);
+    setRecentLeads(d.recentLeads);
+    setUpcomingFollowups(d.upcomingFollowups);
+    setRecentProperties(d.recentProperties);
+  };
 
   useEffect(() => {
-    if (user) loadDashboard();
-  }, [user]);
+    if (!user?.id) { setLoading(false); return; }
 
-  const loadDashboard = async () => {
-    try {
-      // Load leads
-      const { data: leads } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
+    let isMounted = true;
+    const controller = new AbortController();
+    const sig = controller.signal;
 
-      // Load deals
-      const { data: deals } = await supabase
-        .from('deals')
-        .select('*');
+    // ── Initial fetch (stale-while-revalidate) ────────────────────────────────
+    const fetchAll = async () => {
+      if (!isMounted || dashboardFetchLock) return;
+      dashboardFetchLock = true;
 
-      // Load upcoming follow-ups
-      const { data: followups } = await supabase
-        .from('follow_ups')
-        .select('*, leads(full_name)')
-        .eq('status', 'pending')
-        .gte('follow_up_date', new Date().toISOString())
-        .order('follow_up_date', { ascending: true })
-        .limit(5);
+      // Don't show skeleton if we already have cached data
+      if (!dashboardCache) setLoading(true);
 
-      // Load properties
-      const { data: properties } = await supabase
-        .from('properties')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(4);
+      try {
+        await new Promise(r => setTimeout(r, 50)); // let Strict Mode cleanup fire first
+        if (!isMounted) return;
 
-      const allLeads = leads || [];
-      const allDeals = deals || [];
-      const wonLeads = allLeads.filter(l => l.status === 'won').length;
-      const activeDeals = allDeals.filter(d => !['closed_won', 'closed_lost'].includes(d.stage));
-      const pipelineValue = activeDeals.reduce((sum, d) => sum + Number(d.deal_value || 0), 0);
-      const conversionRate = allLeads.length > 0 ? ((wonLeads / allLeads.length) * 100).toFixed(1) : 0;
+        const [
+          { data: leads },
+          { data: deals },
+          { data: followups },
+          { data: properties },
+        ] = await Promise.all([
+          supabase.from('leads').select('*').order('created_at', { ascending: false }).abortSignal(sig),
+          supabase.from('deals').select('*').abortSignal(sig),
+          supabase.from('follow_ups').select('*, leads(full_name)').eq('status', 'pending').gte('follow_up_date', new Date().toISOString()).order('follow_up_date', { ascending: true }).limit(5).abortSignal(sig),
+          supabase.from('properties').select('*').order('created_at', { ascending: false }).limit(4).abortSignal(sig),
+        ]);
 
-      setStats({
-        totalLeads: allLeads.length,
-        activeDeals: activeDeals.length,
-        pipelineValue,
-        conversionRate,
-      });
+        applyData(leads || [], deals || [], followups || [], properties || [], isMounted);
+      } catch (err) {
+        if (sig.aborted) return;
+        console.error('[Dashboard] Fetch error:', err);
+        if (isMounted) toast?.error?.('Could not load dashboard data.');
+      } finally {
+        dashboardFetchLock = false;
+        if (isMounted) setLoading(false);
+      }
+    };
 
-      setRecentLeads(allLeads.slice(0, 6));
-      setUpcomingFollowups(followups || []);
-      setRecentProperties(properties || []);
-    } catch (err) {
-      toast.error('Dashboard load error. Please refresh.');
-    } finally {
-      setLoading(false);
+    fetchAll();
+
+    // ── Supabase Realtime subscriptions ───────────────────────────────────────
+    // Any INSERT / UPDATE / DELETE on these tables triggers a silent background re-fetch.
+    let realtimeLeads = [], realtimeDeals = [], realtimeFollowups = [], realtimeProperties = [];
+
+    // Cache a local snapshot for realtime delta updates
+    const snap = dashboardCache;
+    if (snap) {
+      realtimeLeads      = [...snap.recentLeads];
+      realtimeDeals      = [];  // will be patched by realtime
+      realtimeFollowups  = [...snap.upcomingFollowups];
+      realtimeProperties = [...snap.recentProperties];
     }
-  };
+
+    const silentRefetch = async () => {
+      if (!isMounted || sig.aborted) return;
+      try {
+        const [{ data: l }, { data: d }, { data: f }, { data: p }] = await Promise.all([
+          supabase.from('leads').select('*').order('created_at', { ascending: false }),
+          supabase.from('deals').select('*'),
+          supabase.from('follow_ups').select('*, leads(full_name)').eq('status', 'pending').gte('follow_up_date', new Date().toISOString()).order('follow_up_date', { ascending: true }).limit(5),
+          supabase.from('properties').select('*').order('created_at', { ascending: false }).limit(4),
+        ]);
+        applyData(l || [], d || [], f || [], p || [], isMounted);
+      } catch { /* silent — realtime is best-effort */ }
+    };
+
+    const channel = supabase
+      .channel(`dashboard-realtime-${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' },      () => silentRefetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deals' },      () => silentRefetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'follow_ups' }, () => silentRefetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'properties' }, () => silentRefetch())
+      .subscribe();
+
+    // ── Re-fetch on tab focus after inactivity ────────────────────────────────
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && isMounted && !dashboardFetchLock) fetchAll();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      isMounted = false;
+      dashboardFetchLock = false;
+      controller.abort();
+      supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [user?.id]);
+
+
 
   const formatCurrency = (val) => {
     if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)}Cr`;

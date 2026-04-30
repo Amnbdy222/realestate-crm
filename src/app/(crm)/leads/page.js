@@ -3,11 +3,12 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { Search, Flame, Snowflake, CircleDot, Sparkles, Home, Mic, Loader2, Users, Bot } from 'lucide-react';
+import { Search, Flame, Snowflake, CircleDot, Sparkles, Home, Mic, Loader2, Users, Bot, Mail } from 'lucide-react';
 import Modal from '@/components/Modal';
 import VoiceRecorder from '@/components/VoiceRecorder';
 import styles from './leads.module.css';
 import { exportToCSV } from '@/lib/csvExport';
+import Link from 'next/link';
 
 const SOURCES = ['website', 'referral', 'social_media', 'walk_in', 'cold_call', 'advertisement', 'property_portal', 'other'];
 const STATUSES = ['new', 'contacted', 'qualified', 'negotiation', 'won', 'lost'];
@@ -57,6 +58,8 @@ export default function LeadsPage() {
       if (userProfile.role === 'admin') {
         loadAgents();
       }
+    } else if (!user) {
+      setLoading(false);
     }
   }, [user, userProfile, page]);
 
@@ -98,21 +101,23 @@ export default function LeadsPage() {
       if (count !== null) setTotalCount(count);
 
       const scoredLeads = (data || []).map(lead => {
-        let score = 10; 
-        if (lead.budget_max > 0) score += 20;
-        const hasSiteVisit = lead.follow_ups?.some(f => f.follow_up_type === 'site_visit' && f.status === 'completed');
-        if (hasSiteVisit) score += 30;
-        const daysSinceUpdate = (new Date() - new Date(lead.updated_at)) / (1000 * 60 * 60 * 24);
-        if (daysSinceUpdate <= 2) score += 20;
-        if (lead.priority === 'urgent' || lead.priority === 'high') score += 20;
-        score = Math.min(100, score);
-        
         let aiLabel = 'Cold';
         let aiColor = 'var(--danger)';
-        if (score >= 70) { aiLabel = 'Hot'; aiColor = 'var(--success)'; }
-        else if (score >= 40) { aiLabel = 'Warm'; aiColor = 'var(--warning)'; }
+        
+        if (lead.temperature === 'hot') { 
+          aiLabel = 'Hot'; 
+          aiColor = 'var(--success)'; 
+        } else if (lead.temperature === 'warm') { 
+          aiLabel = 'Warm'; 
+          aiColor = 'var(--warning)'; 
+        }
 
-        return { ...lead, ai_score: score, ai_label: aiLabel, ai_color: aiColor };
+        return { 
+          ...lead, 
+          ai_score: lead.score || 0, 
+          ai_label: aiLabel, 
+          ai_color: aiColor 
+        };
       });
 
       setLeads(scoredLeads);
@@ -214,14 +219,55 @@ export default function LeadsPage() {
   const [viewingLead, setViewingLead] = useState(null);
   const [communications, setCommunications] = useState([]);
   const [activities, setActivities] = useState([]);
+  const [leadTasks, setLeadTasks] = useState([]);
+  const [activeCampaigns, setActiveCampaigns] = useState([]);
+  const [selectedCampaign, setSelectedCampaign] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
-  const [viewTab, setViewTab] = useState('comms'); // 'comms' | 'activity'
+  const [viewTab, setViewTab] = useState('comms'); // 'comms' | 'activity' | 'tasks'
+  
+  const [composingEmail, setComposingEmail] = useState(false);
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const openViewModal = async (lead) => {
     setViewingLead(lead);
     setViewTab('comms');
     loadCommunications(lead.id);
     loadActivities(lead.id);
+    loadLeadTasks(lead.id);
+    loadActiveCampaigns();
+  };
+
+  const loadActiveCampaigns = async () => {
+    const { data } = await supabase.from('drip_campaigns').select('id, name').eq('is_active', true);
+    setActiveCampaigns(data || []);
+  };
+
+  const enrollInCampaign = async () => {
+    if (!selectedCampaign) return toast.warning('Select a campaign first');
+    try {
+      const { error } = await supabase.from('lead_campaigns').insert({
+        lead_id: viewingLead.id,
+        campaign_id: selectedCampaign,
+        user_id: user.id,
+        next_execution_time: new Date().toISOString() // schedule immediately for cron
+      });
+      if (error) throw error;
+      toast.success('Lead enrolled in campaign successfully!');
+      setSelectedCampaign('');
+    } catch (err) {
+      toast.error('Failed to enroll lead in campaign');
+    }
+  };
+
+  const loadLeadTasks = async (leadId) => {
+    const { data } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: false });
+    setLeadTasks(data || []);
   };
 
   const loadActivities = async (leadId) => {
@@ -281,6 +327,38 @@ export default function LeadsPage() {
     } finally {
       setIsUploadingCall(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailSubject || !emailBody) return toast.warning('Subject and message are required');
+    if (!viewingLead.email) return toast.warning('This lead does not have an email address');
+
+    setSendingEmail(true);
+    try {
+      const res = await fetch('/api/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: viewingLead.email,
+          subject: emailSubject,
+          message: emailBody,
+          leadId: viewingLead.id,
+          userId: user.id
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send email');
+      
+      toast.success('Email sent successfully!');
+      setComposingEmail(false);
+      setEmailSubject('');
+      setEmailBody('');
+      loadCommunications(viewingLead.id);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -865,6 +943,22 @@ export default function LeadsPage() {
                 <button className="btn btn-secondary" onClick={() => handleAiAssist('recommend_properties')} disabled={aiLoading}>
                   {aiLoading ? 'Finding...' : <><Home size={14} style={{display:'inline',verticalAlign:'middle'}} /> Auto Recommend Properties</>}
                 </button>
+                <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                  <Link href="/tasks" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginBottom: 12 }}>
+                    Manage Tasks
+                  </Link>
+
+                  <div style={{ background: 'var(--bg-secondary)', padding: 12, borderRadius: 'var(--radius-md)' }}>
+                    <h4 style={{ margin: '0 0 8px 0', fontSize: '0.85rem' }}>Enroll in Campaign</h4>
+                    <select className="form-select" value={selectedCampaign} onChange={e => setSelectedCampaign(e.target.value)} style={{ marginBottom: 8, padding: '6px', fontSize: '0.85rem' }}>
+                      <option value="">Select a campaign...</option>
+                      {activeCampaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <button className="btn btn-secondary btn-sm" style={{ width: '100%' }} onClick={enrollInCampaign} disabled={!selectedCampaign}>
+                      Enroll Lead
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -901,9 +995,27 @@ export default function LeadsPage() {
                   >
                     Activity Log
                   </button>
+                  <button
+                    onClick={() => setViewTab('tasks')}
+                    style={{
+                      padding: '6px 14px',
+                      background: viewTab === 'tasks' ? 'var(--primary)' : 'var(--bg-secondary)',
+                      color: viewTab === 'tasks' ? 'white' : 'var(--text-secondary)',
+                      border: 'none',
+                      borderRadius: 'var(--radius-md)',
+                      fontWeight: 600,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Tasks
+                  </button>
                 </div>
                 {viewTab === 'comms' && (
-                  <div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => setComposingEmail(!composingEmail)}>
+                      <Mail size={14} style={{display:'inline',verticalAlign:'middle'}} /> {composingEmail ? 'Cancel Email' : 'Compose Email'}
+                    </button>
                     <input type="file" accept="audio/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleCallUpload} />
                     <button className="btn btn-secondary btn-sm" onClick={() => fileInputRef.current?.click()} disabled={isUploadingCall}>
                       {isUploadingCall ? <><Loader2 size={14} style={{display:'inline',verticalAlign:'middle'}} /> Analyzing...</> : <><Mic size={14} style={{display:'inline',verticalAlign:'middle'}} /> Upload Call</>}
@@ -917,7 +1029,29 @@ export default function LeadsPage() {
                 background: 'var(--bg-card)'
               }}>
                 {viewTab === 'comms' ? (
-                  communications.length === 0 ? (
+                  composingEmail ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {viewingLead.email ? (
+                        <>
+                          <div className="form-group" style={{ marginBottom: 0 }}>
+                            <input className="form-input" style={{ fontSize: '0.85rem', padding: '8px' }} placeholder="Subject" value={emailSubject} onChange={e => setEmailSubject(e.target.value)} />
+                          </div>
+                          <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                            <textarea className="form-input" style={{ fontSize: '0.85rem', padding: '8px', minHeight: '120px' }} placeholder="Type your message here..." value={emailBody} onChange={e => setEmailBody(e.target.value)} />
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            <button className="btn btn-primary btn-sm" onClick={handleSendEmail} disabled={sendingEmail}>
+                              {sendingEmail ? 'Sending...' : 'Send Email'}
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-muted" style={{ textAlign: 'center', padding: 32 }}>
+                          This lead does not have an email address. Please update their profile first.
+                        </div>
+                      )}
+                    </div>
+                  ) : communications.length === 0 ? (
                     <p className="text-muted">No communications yet.</p>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -941,7 +1075,7 @@ export default function LeadsPage() {
                       ))}
                     </div>
                   )
-                ) : (
+                ) : viewTab === 'activity' ? (
                   activities.length === 0 ? (
                     <p className="text-muted">No activity yet.</p>
                   ) : (
@@ -957,6 +1091,21 @@ export default function LeadsPage() {
                           {act.description && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>{act.description}</div>}
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                             {new Date(act.created_at).toLocaleString('en-IN')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  leadTasks.length === 0 ? (
+                    <p className="text-muted">No tasks for this lead.</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {leadTasks.map(task => (
+                        <div key={task.id} style={{ padding: 12, border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 'var(--radius-md)' }}>
+                          <div style={{ fontWeight: 600, textDecoration: task.status === 'done' ? 'line-through' : 'none' }}>{task.title}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                            Priority: {task.priority} • Status: {task.status}
                           </div>
                         </div>
                       ))}

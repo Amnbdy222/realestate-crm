@@ -128,8 +128,10 @@ export default function LoginPage() {
 
       <div className={styles.card}>
         <div className={styles.header}>
-          <div className={styles.logoIcon}><Building2 size={32} color="white" /></div>
-          <h1 className={styles.title}>RealCRM</h1>
+          <div className={styles.logoIcon}>
+            <img src="/logo.png" alt="DealBook Logo" className={styles.logoImage} />
+          </div>
+          <h1 className={styles.title}>DealBook</h1>
           <p className={styles.subtitle}>
             {step === 'email' ? 'Sign in to your account' : 'Enter the verification code'}
           </p>
@@ -239,7 +241,7 @@ export default function LoginPage() {
         )}
       </div>
 
-      <p className={styles.copyright}>© 2026 RealCRM — Real Estate Management</p>
+      <p className={styles.copyright}>© 2026 DealBook — Real Estate Management</p>
     </div>
   );
 }

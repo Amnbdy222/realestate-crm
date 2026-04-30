@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { Bell, Check, CheckCheck, Calendar, Users, Handshake, X } from 'lucide-react';
+import { Bell, Check, CheckCheck, Calendar, Users, Handshake, X, BellRing } from 'lucide-react';
 import styles from './NotificationBell.module.css';
 
 export default function NotificationBell() {
@@ -13,12 +13,38 @@ export default function NotificationBell() {
   const panelRef = useRef(null);
 
   useEffect(() => {
-    if (user) {
-      loadNotifications();
-      // Poll every 60s for new reminders
-      const interval = setInterval(loadNotifications, 60_000);
-      return () => clearInterval(interval);
-    }
+    if (!user) return;
+
+    let isMounted = true;
+    const controller = new AbortController();
+
+    const fetchNotifications = async () => {
+      await loadNotifications(isMounted, controller.signal);
+    };
+
+    fetchNotifications();
+
+    // Poll every 60s to refresh the dynamic time-based follow-up statuses
+    const interval = setInterval(fetchNotifications, 60_000);
+
+    // Subscribe to realtime updates for persistent notifications
+    const channel = supabase
+      .channel(`notifications-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        () => {
+          if (isMounted) fetchNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      controller.abort();
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   // Close on outside click
@@ -30,86 +56,88 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const loadNotifications = async () => {
+  const loadNotifications = async (isMounted, signal) => {
     if (!user) return;
     const now = new Date();
     const soon = new Date(now.getTime() + 24 * 60 * 60 * 1000); // next 24h
 
-    // Overdue follow-ups
-    const { data: overdue } = await supabase
-      .from('follow_ups')
-      .select('id, title, follow_up_date, leads(full_name)')
-      .eq('user_id', user.id)
-      .eq('status', 'pending')
-      .lt('follow_up_date', now.toISOString())
-      .order('follow_up_date', { ascending: false })
-      .limit(5);
+    try {
+      // Execute queries sequentially to prevent Supabase GoTrue auth-lock contention
+      const { data: overdue } = await supabase.from('follow_ups').select('id, title, follow_up_date, leads(full_name)').eq('user_id', user.id).eq('status', 'pending').lt('follow_up_date', now.toISOString()).order('follow_up_date', { ascending: false }).limit(5).abortSignal(signal);
+      if (!isMounted) return;
 
-    // Upcoming follow-ups in next 24h
-    const { data: upcoming } = await supabase
-      .from('follow_ups')
-      .select('id, title, follow_up_date, leads(full_name)')
-      .eq('user_id', user.id)
-      .eq('status', 'pending')
-      .gte('follow_up_date', now.toISOString())
-      .lte('follow_up_date', soon.toISOString())
-      .order('follow_up_date', { ascending: true })
-      .limit(5);
+      const { data: upcoming } = await supabase.from('follow_ups').select('id, title, follow_up_date, leads(full_name)').eq('user_id', user.id).eq('status', 'pending').gte('follow_up_date', now.toISOString()).lte('follow_up_date', soon.toISOString()).order('follow_up_date', { ascending: true }).limit(5).abortSignal(signal);
+      if (!isMounted) return;
 
-    // New leads in last 24h
-    const { data: newLeads } = await supabase
-      .from('leads')
-      .select('id, full_name, source, created_at')
-      .eq('user_id', user.id)
-      .gte('created_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString())
-      .order('created_at', { ascending: false })
-      .limit(3);
+      const { data: persistent } = await supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20).abortSignal(signal);
+      if (!isMounted) return;
 
-    const items = [
-      ...(overdue || []).map(f => ({
-        id: `overdue-${f.id}`,
-        type: 'overdue',
-        icon: 'calendar',
-        title: `Overdue: ${f.title}`,
-        subtitle: `${f.leads?.full_name} • ${formatRelative(f.follow_up_date)}`,
-        time: f.follow_up_date,
-        read: false,
-        href: '/followups',
-      })),
-      ...(upcoming || []).map(f => ({
-        id: `upcoming-${f.id}`,
-        type: 'upcoming',
-        icon: 'calendar',
-        title: `Due soon: ${f.title}`,
-        subtitle: `${f.leads?.full_name} • ${formatRelative(f.follow_up_date)}`,
-        time: f.follow_up_date,
-        read: false,
-        href: '/followups',
-      })),
-      ...(newLeads || []).map(l => ({
-        id: `lead-${l.id}`,
-        type: 'lead',
-        icon: 'user',
-        title: `New lead: ${l.full_name}`,
-        subtitle: `via ${l.source?.replace(/_/g, ' ')} • ${formatRelative(l.created_at)}`,
-        time: l.created_at,
-        read: false,
-        href: '/leads',
-      })),
-    ].sort((a, b) => new Date(b.time) - new Date(a.time));
+      const items = [
+        ...(persistent || []).map(n => ({
+          id: n.id,
+          isPersistent: true, // indicates it's from the notifications table
+          type: n.type || 'system',
+          icon: n.type,
+          title: n.title,
+          subtitle: n.body,
+          time: n.created_at,
+          read: n.read,
+          href: n.link || '#',
+        })),
+        ...(overdue || []).map(f => ({
+          id: `overdue-${f.id}`,
+          isPersistent: false,
+          type: 'overdue',
+          icon: 'calendar',
+          title: `Overdue: ${f.title}`,
+          subtitle: `${f.leads?.full_name} • ${formatRelative(f.follow_up_date)}`,
+          time: f.follow_up_date,
+          read: false,
+          href: '/followups',
+        })),
+        ...(upcoming || []).map(f => ({
+          id: `upcoming-${f.id}`,
+          isPersistent: false,
+          type: 'upcoming',
+          icon: 'calendar',
+          title: `Due soon: ${f.title}`,
+          subtitle: `${f.leads?.full_name} • ${formatRelative(f.follow_up_date)}`,
+          time: f.follow_up_date,
+          read: false,
+          href: '/followups',
+        })),
+      ].sort((a, b) => new Date(b.time) - new Date(a.time));
 
-    setNotifications(items);
-    setUnreadCount(items.length);
+      setNotifications(items);
+      setUnreadCount(items.filter(i => !i.read).length);
+    } catch (err) {
+      if (signal?.aborted) return;
+      console.error('Error loading notifications:', err);
+    }
   };
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     setUnreadCount(0);
+    
+    // Update persistent ones in the database
+    const persistentIds = notifications.filter(n => n.isPersistent && !n.read).map(n => n.id);
+    if (persistentIds.length > 0) {
+      await supabase.from('notifications').update({ read: true }).in('id', persistentIds);
+    }
   };
 
-  const dismiss = (id) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-    setUnreadCount(prev => Math.max(0, prev - 1));
+  const dismiss = async (id, isPersistent) => {
+    // Optimistic UI update
+    setNotifications(prev => {
+      const isUnread = !prev.find(n => n.id === id)?.read;
+      if (isUnread) setUnreadCount(c => Math.max(0, c - 1));
+      return prev.filter(n => n.id !== id);
+    });
+
+    if (isPersistent) {
+      await supabase.from('notifications').delete().eq('id', id);
+    }
   };
 
   const formatRelative = (dateStr) => {
@@ -128,12 +156,16 @@ export default function NotificationBell() {
     calendar: <Calendar size={14} />,
     user: <Users size={14} />,
     deal: <Handshake size={14} />,
+    lead: <Users size={14} />,
+    system: <BellRing size={14} />
   };
 
   const colorMap = {
     overdue: 'var(--danger)',
     upcoming: 'var(--warning)',
     lead: 'var(--primary)',
+    deal: 'var(--success)',
+    system: 'var(--text-secondary)'
   };
 
   return (
@@ -186,7 +218,7 @@ export default function NotificationBell() {
                   </div>
                   <button
                     className={styles.dismissBtn}
-                    onClick={e => { e.preventDefault(); e.stopPropagation(); dismiss(n.id); }}
+                    onClick={e => { e.preventDefault(); e.stopPropagation(); dismiss(n.id, n.isPersistent); }}
                   >
                     <X size={12} />
                   </button>

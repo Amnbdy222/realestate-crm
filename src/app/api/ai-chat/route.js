@@ -25,7 +25,7 @@ export async function POST(req) {
       content: sanitizeForPrompt(m.content, 1000),
     }));
 
-    const systemPrompt = `You are a helpful, expert Real Estate CRM AI Assistant.
+    const systemPrompt = `You are a helpful, expert DealBook AI Assistant.
 You have access to the user's current CRM context. Answer their questions based on this data. Be concise, friendly, and use emojis.
 
 USER'S CRM CONTEXT:

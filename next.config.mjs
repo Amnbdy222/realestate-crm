@@ -1,10 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Netlify handles the Next.js runtime via @netlify/plugin-nextjs
-  // Do NOT set output: 'export' — API routes and SSR must stay dynamic
+  // Disable React Strict Mode to prevent Supabase auth lock conflicts
+  // (Strict Mode double-mounts components in dev, causing two auth instances
+  // to fight over the same browser Web Lock)
+  reactStrictMode: false,
 
   images: {
-    // Allow Supabase storage images
     remotePatterns: [
       {
         protocol: 'https',

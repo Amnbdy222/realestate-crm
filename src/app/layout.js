@@ -3,8 +3,11 @@ import { AuthProvider } from '@/context/AuthContext';
 import { ToastProvider } from '@/context/ToastContext';
 
 export const metadata = {
-  title: 'RealCRM — Real Estate CRM',
+  title: 'DealBook — Real Estate CRM',
   description: 'Modern Real Estate CRM for managing leads, follow-ups, deals, and properties. Track your pipeline from lead to close.',
+  icons: {
+    icon: '/logo.png',
+  },
 };
 
 export default function RootLayout({ children }) {

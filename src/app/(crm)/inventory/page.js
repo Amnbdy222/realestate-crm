@@ -33,7 +33,11 @@ export default function InventoryPage() {
   const [roiForm, setRoiForm] = useState({ propertyValue: 5000000, expectedRent: 25000, appreciationRate: 5, holdingPeriod: 5 });
 
   useEffect(() => {
-    if (user) loadInitial();
+    if (user) {
+      loadInitial();
+    } else {
+      setLoading(false);
+    }
   }, [user]);
 
   // When project selector changes, reload towers + units together

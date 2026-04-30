@@ -28,7 +28,12 @@ export default function FollowupsPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   useEffect(() => {
-    if (user) { loadFollowups(); loadLeads(); }
+    if (user) {
+      loadFollowups();
+      loadLeads();
+    } else {
+      setLoading(false);
+    }
   }, [user]);
 
   const loadFollowups = async () => {

@@ -30,7 +30,11 @@ export default function TeamPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (user) loadAgents();
+    if (user) {
+      loadAgents();
+    } else {
+      setLoading(false);
+    }
   }, [user]);
 
   const loadAgents = async () => {

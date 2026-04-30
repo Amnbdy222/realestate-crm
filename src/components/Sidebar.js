@@ -2,13 +2,14 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import styles from './Sidebar.module.css';
-import { LayoutDashboard, Users, RefreshCw, CalendarCheck, Building2, Handshake, Home, FileText, UserCheck, BarChart3, Briefcase, ChevronRight, ChevronLeft, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Users, RefreshCw, CalendarCheck, Building2, Handshake, Home, FileText, UserCheck, BarChart3, Briefcase, ChevronRight, ChevronLeft, BookOpen, CheckSquare, Megaphone } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
   { href: '/leads', icon: <Users size={20} />, label: 'Leads' },
   { href: '/pipeline', icon: <RefreshCw size={20} />, label: 'Pipeline' },
   { href: '/followups', icon: <CalendarCheck size={20} />, label: 'Follow-ups' },
+  { href: '/tasks', icon: <CheckSquare size={20} />, label: 'Tasks' },
   { href: '/inventory', icon: <Building2 size={20} />, label: 'Inventory' },
   { href: '/bookings', icon: <BookOpen size={20} />, label: 'Bookings' },
   { href: '/deals', icon: <Handshake size={20} />, label: 'Deals' },
@@ -28,6 +29,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   const currentNavItems = [
     ...navItems,
     ...(isAdmin ? [
+      { href: '/campaigns', icon: <Megaphone size={20} />, label: 'Campaigns' },
       { href: '/analytics', icon: <BarChart3 size={20} />, label: 'Analytics' },
       { href: '/team', icon: <Briefcase size={20} />, label: 'Team' }
     ] : [])
@@ -37,11 +39,11 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
     <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''} ${mobileOpen ? styles.mobileOpen : ''}`}>
       <div className={styles.logo}>
         <div className={styles.logoIcon}>
-          <Building2 size={24} />
+          <img src="/logo.png" alt="DealBook Logo" className={styles.logoImage} />
         </div>
         {!collapsed && (
           <div className={styles.logoText}>
-            <h2>RealCRM</h2>
+            <h2>DealBook</h2>
             <span>Real Estate Manager</span>
           </div>
         )}

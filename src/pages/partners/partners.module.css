@@ -1,0 +1,122 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.partnerCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow-sm);
+}
+
+.partnerCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-subtle);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.agencyName {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.brokerName {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.commissionBadge {
+  background: rgba(0, 184, 148, 0.1);
+  color: var(--success);
+  padding: 4px 10px;
+  border-radius: 0px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border-subtle);
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.detailLabel {
+  color: var(--text-muted);
+}
+
+.detailValue {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+/* ── Mobile responsive ──────────────────────────────────── */
+@media (max-width: 768px) {
+  .container {
+    gap: 16px;
+  }
+
+  .pageHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 0;
+  }
+
+  .pageHeader button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Partner cards — single column */
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .partnerCard {
+    padding: 16px;
+  }
+}

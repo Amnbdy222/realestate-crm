@@ -1,21 +1,28 @@
 'use client';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import AIChatWidget from '@/components/AIChatWidget';
 
 export default function ProtectedLayout({ children }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  // Safety: if loading takes more than 5s, force it to resolve
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
+    const t = setTimeout(() => setTimedOut(true), 5000);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if ((!loading || timedOut) && !user) {
       router.push('/');
     }
-  }, [user, loading, router]);
+  }, [user, loading, timedOut, router]);
 
-  if (loading) {
+  if (loading && !timedOut) {
     return (
       <div style={{
         minHeight: '100vh',
@@ -27,7 +34,7 @@ export default function ProtectedLayout({ children }) {
         <div style={{
           width: 48,
           height: 48,
-          border: '3px solid rgba(108,92,231,0.2)',
+          border: '3px solid rgba(79,70,229,0.2)',
           borderTopColor: 'var(--primary)',
           borderRadius: '50%',
           animation: 'spin 0.8s linear infinite'

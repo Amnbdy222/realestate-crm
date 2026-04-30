@@ -38,7 +38,7 @@ export async function POST(req) {
 
     if (extractLead) {
       const prompt = `
-        You are a Real Estate CRM assistant. Extract the lead details from the following voice note transcription.
+        You are a DealBook assistant. Extract the lead details from the following voice note transcription.
         Return ONLY a JSON object with these exact keys: full_name, phone, email, budget_max, preferred_location, property_type, notes.
         If a field is not mentioned, make it null. 
         Ensure budget is a number (e.g. 80 lakhs = 8000000).

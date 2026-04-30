@@ -1,20 +1,27 @@
 'use client';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import LoginPage from '@/components/LoginPage';
 
 export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  // Safety: if auth loading takes more than 4s, show login anyway
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) {
+    const t = setTimeout(() => setTimedOut(true), 4000);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if ((!loading || timedOut) && user) {
       router.push('/dashboard');
     }
-  }, [user, loading, router]);
+  }, [user, loading, timedOut, router]);
 
-  if (loading) {
+  if (loading && !timedOut) {
     return (
       <div style={{
         minHeight: '100vh',
