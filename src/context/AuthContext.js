@@ -102,6 +102,19 @@ export function AuthProvider({ children }) {
     return data;
   };
 
+  // Register a new organization + admin user via server API
+  const registerOrg = async (orgName, fullName, email, password) => {
+    const res = await fetch('/api/org/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orgName, fullName, email, password })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Registration failed');
+    return data;
+  };
+
   const signInWithPassword = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
@@ -114,7 +127,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, userProfile, loading, sendOtp, verifyOtp, signInWithPassword, signOut }}>
+    <AuthContext.Provider value={{ user, userProfile, loading, sendOtp, verifyOtp, registerOrg, signInWithPassword, signOut }}>
       {children}
     </AuthContext.Provider>
   );

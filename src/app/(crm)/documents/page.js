@@ -20,8 +20,9 @@ import Modal from '@/components/Modal';
 import styles from './documents.module.css';
 
 export default function DocumentsPage() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const toast = useToast();
+  const orgId = userProfile?.org_id;
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -89,7 +90,8 @@ export default function DocumentsPage() {
           document_type: uploadForm.type,
           status: uploadForm.type === 'agreement' ? 'pending_signature' : 'approved',
           file_url: filePath,
-          user_id: user.id
+          user_id: user.id,
+          org_id: orgId
         }]);
 
       if (dbError) throw dbError;
@@ -145,7 +147,8 @@ export default function DocumentsPage() {
           document_type: generateForm.type,
           status: 'pending_signature',
           file_url: filePath,
-          user_id: user.id
+          user_id: user.id,
+          org_id: orgId
         }]);
 
       if (dbError) throw dbError;

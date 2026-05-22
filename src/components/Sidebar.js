@@ -2,7 +2,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import styles from './Sidebar.module.css';
-import { LayoutDashboard, Users, RefreshCw, CalendarCheck, Building2, Handshake, Home, FileText, UserCheck, BarChart3, Briefcase, ChevronRight, ChevronLeft, BookOpen, CheckSquare, Megaphone } from 'lucide-react';
+import { LayoutDashboard, Users, RefreshCw, CalendarCheck, Building2, Handshake, Home, FileText, UserCheck, BarChart3, Briefcase, ChevronRight, ChevronLeft, BookOpen, CheckSquare } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
@@ -29,7 +29,6 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   const currentNavItems = [
     ...navItems,
     ...(isAdmin ? [
-      { href: '/campaigns', icon: <Megaphone size={20} />, label: 'Campaigns' },
       { href: '/analytics', icon: <BarChart3 size={20} />, label: 'Analytics' },
       { href: '/team', icon: <Briefcase size={20} />, label: 'Team' }
     ] : [])

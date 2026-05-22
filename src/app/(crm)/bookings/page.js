@@ -27,8 +27,9 @@ const emptyForm = {
 };
 
 export default function BookingsPage() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const toast = useToast();
+  const orgId = userProfile?.org_id;
 
   const [bookings, setBookings] = useState([]);
   const [units, setUnits] = useState([]);
@@ -132,6 +133,7 @@ export default function BookingsPage() {
         booking_date: form.booking_date,
         status: form.status,
         user_id: user.id,
+        org_id: orgId,
       };
 
       if (editingBooking) {

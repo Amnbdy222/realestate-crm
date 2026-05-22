@@ -71,7 +71,7 @@ export default function PipelinePage() {
   const loadLeads = async () => {
     try {
       const { data, error } = await supabase
-        .from('leads').select('*').eq('user_id', user.id)
+        .from('leads').select('*')
         .order('updated_at', { ascending: false });
       if (error) throw error;
       setLeads(data || []);
@@ -79,6 +79,7 @@ export default function PipelinePage() {
     finally { setLoading(false); }
   };
 
+  // ── Auto-scroll loop ────────────────────────────────────
   const autoScrollLoop = useCallback(() => {
     const board = boardRef.current;
     if (!board || !isDraggingRef.current) return;
@@ -95,6 +96,7 @@ export default function PipelinePage() {
     if (scrollRafRef.current) { cancelAnimationFrame(scrollRafRef.current); scrollRafRef.current = null; }
   }, []);
 
+  // ── Shared move ─────────────────────────────────────────
   const moveLead = useCallback(async (leadId, toStage) => {
     const cur = leads.find(l => l.id === leadId);
     if (!cur || cur.status === toStage) return;
@@ -102,10 +104,11 @@ export default function PipelinePage() {
     try {
       const { error } = await supabase.from('leads').update({ status: toStage }).eq('id', leadId);
       if (error) throw error;
-      toast.success('Lead moved to ' + toStage);
+      toast.success(`Moved to ${toStage}`);
     } catch { toast.error('Failed to move lead'); loadLeads(); }
   }, [leads]);
 
+  // ── Desktop drag ────────────────────────────────────────
   const handleDragStart = (e, lead) => {
     isDraggingRef.current = true;
     lastClientX.current = e.clientX;
@@ -133,8 +136,9 @@ export default function PipelinePage() {
     setDraggedLead(null);
   };
 
+  // ── Mobile tap ──────────────────────────────────────────
   const handleCardTap = (lead) => {
-    if (selectedLead && selectedLead.id === lead.id) { setSelectedLead(null); return; }
+    if (selectedLead?.id === lead.id) { setSelectedLead(null); return; }
     setSelectedLead(lead);
     setCollapsedStages(new Set());
   };
@@ -152,14 +156,14 @@ export default function PipelinePage() {
 
   const formatBudget = (val) => {
     if (!val) return '';
-    if (val >= 10000000) return '\u20b9' + (val / 10000000).toFixed(1) + 'Cr';
-    if (val >= 100000)   return '\u20b9' + (val / 100000).toFixed(1) + 'L';
-    return '\u20b9' + (val / 1000).toFixed(0) + 'K';
+    if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)}Cr`;
+    if (val >= 100000)   return `₹${(val / 100000).toFixed(1)}L`;
+    return `₹${(val / 1000).toFixed(0)}K`;
   };
 
   const getDaysAgo = (date) => {
     const d = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
-    return d === 0 ? 'Today' : d === 1 ? '1 day ago' : d + ' days ago';
+    return d === 0 ? 'Today' : d === 1 ? '1 day ago' : `${d} days ago`;
   };
 
   return (
@@ -168,9 +172,9 @@ export default function PipelinePage() {
         <div>
           <h1>Pipeline</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: 4 }}>
-            <span className={styles.desktopHint}>Drag and drop — board auto-scrolls near edges</span>
+            <span className={styles.desktopHint}>Drag & drop — board auto-scrolls near edges</span>
             <span className={styles.mobileHint}>Tap a card, then tap a stage to move it</span>
-            {' — '}{leads.length} leads
+            {' '}— {leads.length} leads
           </p>
         </div>
         <a href="/leads" className="btn btn-primary">+ Add Lead</a>
@@ -205,67 +209,65 @@ export default function PipelinePage() {
             const isOver       = dragOverStage === key;
             const isCollapsed  = collapsedStages.has(key);
             const isTarget     = selectedLead && selectedLead.status !== key;
-            const isCurrent    = selectedLead && selectedLead.status === key;
+            const isCurrent    = selectedLead?.status === key;
             const isMovingHere = movingTo === key;
-
-            const colClass = [
-              styles.column,
-              isOver      ? styles.columnDragOver  : '',
-              isCollapsed ? styles.columnCollapsed  : '',
-              isTarget    ? styles.columnTarget     : '',
-              isCurrent   ? styles.columnCurrent    : '',
-            ].filter(Boolean).join(' ');
 
             return (
               <div
                 key={key}
-                className={colClass}
+                className={[
+                  styles.column,
+                  isOver      ? styles.columnDragOver  : '',
+                  isCollapsed ? styles.columnCollapsed  : '',
+                  isTarget    ? styles.columnTarget     : '',
+                  isCurrent   ? styles.columnCurrent    : '',
+                ].join(' ')}
                 onDragOver={(e) => handleDragOver(e, key)}
                 onDragLeave={() => setDragOverStage(null)}
                 onDrop={(e) => handleDrop(e, key)}
               >
                 <div
-                  className={styles.columnHeader + (isTarget ? ' ' + styles.columnHeaderTarget : '')}
+                  className={`${styles.columnHeader} ${isTarget ? styles.columnHeaderTarget : ''}`}
                   onClick={() => handleStageTap(key)}
                 >
                   <div className={styles.columnTitle}>
-                    <span className={styles.columnIcon} style={{ background: stage.color + '22', color: stage.color }}>
+                    <span className={styles.columnIcon} style={{ background: `${stage.color}22`, color: stage.color }}>
                       {getIcon(key)}
                     </span>
                     <span>{stage.label}</span>
-                    <span className={styles.count} style={{ background: stage.color + '20', color: stage.color }}>
+                    <span className={styles.count} style={{ background: `${stage.color}20`, color: stage.color }}>
                       {stageLeads.length}
                     </span>
-                    {isTarget  && <span className={styles.moveHere}>{isMovingHere ? '...' : '\u2192 Move here'}</span>}
+                    {isTarget  && <span className={styles.moveHere}>{isMovingHere ? '⏳' : '→ Move here'}</span>}
                     {isCurrent && <span className={styles.currentStage}>Current</span>}
-                    {!selectedLead && <span className={styles.collapseChevron}>{isCollapsed ? '\u25b6' : '\u25bc'}</span>}
+                    {!selectedLead && <span className={styles.collapseChevron}>{isCollapsed ? '▶' : '▼'}</span>}
                   </div>
                 </div>
 
                 {!isCollapsed && (
                   <div className={styles.cardList}>
                     {stageLeads.length === 0 ? (
-                      <div className={styles.emptyCol + (isOver ? ' ' + styles.emptyColOver : '')}>
+                      <div className={`${styles.emptyCol} ${isOver ? styles.emptyColOver : ''}`}>
                         <span style={{ opacity: 0.5 }}>
                           {isTarget ? 'Tap header to move here' : 'Drop leads here'}
                         </span>
                       </div>
                     ) : (
                       stageLeads.map((lead, i) => {
-                        const isSel = selectedLead && selectedLead.id === lead.id;
+                        const isSel = selectedLead?.id === lead.id;
                         return (
                           <div
                             key={lead.id}
-                            className={styles.leadCard + (isSel ? ' ' + styles.leadCardSelected : '')}
+                            className={`${styles.leadCard} ${isSel ? styles.leadCardSelected : ''}`}
                             draggable
                             onDragStart={(e) => handleDragStart(e, lead)}
                             onDragEnd={handleDragEnd}
                             onClick={() => handleCardTap(lead)}
-                            style={{ animationDelay: i * 60 + 'ms', borderLeftColor: isSel ? '#fff' : stage.color, cursor: 'grab' }}
+                            style={{ animationDelay: `${i * 60}ms`, borderLeftColor: isSel ? '#fff' : stage.color, cursor: 'grab' }}
                           >
                             <div className={styles.cardTop}>
                               <div className={styles.cardAvatar} style={{ background: isSel ? '#fff' : stage.color, color: isSel ? stage.color : '#fff' }}>
-                                {lead.full_name && lead.full_name.charAt(0).toUpperCase()}
+                                {lead.full_name?.charAt(0).toUpperCase()}
                               </div>
                               <div className={styles.cardInfo}>
                                 <span className={styles.cardName}>{lead.full_name}</span>
@@ -277,6 +279,7 @@ export default function PipelinePage() {
                                 </span>
                               )}
                             </div>
+
                             <div className={styles.cardMeta}>
                               {lead.budget_max > 0 && (
                                 <span className={styles.cardBudget}>
@@ -284,16 +287,18 @@ export default function PipelinePage() {
                                   {formatBudget(lead.budget_max)}
                                 </span>
                               )}
-                              <span className={styles.cardSource}>{lead.source && lead.source.replace(/_/g, ' ')}</span>
+                              <span className={styles.cardSource}>{lead.source?.replace(/_/g, ' ')}</span>
                             </div>
+
                             {lead.preferred_location && (
                               <div className={styles.cardLocation}>
                                 <MapPin size={12} style={{ display: 'inline', verticalAlign: 'middle' }} />
                                 {' '}{lead.preferred_location}
                               </div>
                             )}
+
                             <div className={styles.cardFooter}>
-                              <span className={'badge badge-priority-' + lead.priority}>{lead.priority}</span>
+                              <span className={`badge badge-priority-${lead.priority}`}>{lead.priority}</span>
                               <span className={styles.cardDate}>{getDaysAgo(lead.created_at)}</span>
                             </div>
                           </div>

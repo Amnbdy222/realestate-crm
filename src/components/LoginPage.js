@@ -1,10 +1,10 @@
 'use client';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Building2, Mail } from 'lucide-react';
+import { Building2, Mail, ArrowLeft } from 'lucide-react';
 import styles from './LoginPage.module.css';
 
-export default function LoginPage() {
+export default function LoginPage({ onBackClick }) {
   const { sendOtp, verifyOtp, signInWithPassword } = useAuth();
   const [loginMethod, setLoginMethod] = useState('otp'); // 'otp' or 'password'
   const [step, setStep] = useState('email'); // 'email' or 'otp'
@@ -127,7 +127,18 @@ export default function LoginPage() {
       </div>
 
       <div className={styles.card}>
-        <div className={styles.header}>
+        {onBackClick && (
+          <button 
+            type="button" 
+            className="btn btn-secondary btn-sm" 
+            onClick={onBackClick} 
+            style={{ position: 'absolute', top: 24, left: 24, display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px' }}
+          >
+            <ArrowLeft size={14} /> Back
+          </button>
+        )}
+
+        <div className={styles.header} style={onBackClick ? { marginTop: 24 } : {}}>
           <div className={styles.logoIcon}>
             <img src="/logo.png" alt="DealBook Logo" className={styles.logoImage} />
           </div>

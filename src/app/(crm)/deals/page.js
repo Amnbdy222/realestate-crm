@@ -19,8 +19,9 @@ const emptyForm = {
 };
 
 export default function DealsPage() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const toast = useToast();
+  const orgId = userProfile?.org_id;
   const [deals, setDeals] = useState([]);
   const [leads, setLeads] = useState([]);
   const [properties, setProperties] = useState([]);
@@ -39,7 +40,6 @@ export default function DealsPage() {
       const { data, error } = await supabase
         .from('deals')
         .select('*, leads(full_name), properties(title)')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       setDeals(data || []);
@@ -51,12 +51,12 @@ export default function DealsPage() {
   };
 
   const loadLeads = async () => {
-    const { data } = await supabase.from('leads').select('id, full_name').eq('user_id', user.id);
+    const { data } = await supabase.from('leads').select('id, full_name');
     setLeads(data || []);
   };
 
   const loadProperties = async () => {
-    const { data } = await supabase.from('properties').select('id, title').eq('user_id', user.id);
+    const { data } = await supabase.from('properties').select('id, title');
     setProperties(data || []);
   };
 
@@ -93,7 +93,7 @@ export default function DealsPage() {
         if (error) throw error;
         toast.success('Deal updated');
       } else {
-        const { error } = await supabase.from('deals').insert({ ...payload, user_id: user.id });
+        const { error } = await supabase.from('deals').insert({ ...payload, user_id: user.id, org_id: orgId });
         if (error) throw error;
         toast.success('Deal created');
       }

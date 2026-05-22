@@ -15,8 +15,9 @@ const emptyForm = {
 };
 
 export default function FollowupsPage() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const toast = useToast();
+  const orgId = userProfile?.org_id;
   const [followups, setFollowups] = useState([]);
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +42,6 @@ export default function FollowupsPage() {
       const { data, error } = await supabase
         .from('follow_ups')
         .select('*, leads(full_name, phone)')
-        .eq('user_id', user.id)
         .order('follow_up_date', { ascending: true });
       if (error) throw error;
       setFollowups(data || []);
@@ -53,7 +53,7 @@ export default function FollowupsPage() {
   };
 
   const loadLeads = async () => {
-    const { data } = await supabase.from('leads').select('id, full_name').eq('user_id', user.id).order('full_name');
+    const { data } = await supabase.from('leads').select('id, full_name').order('full_name');
     setLeads(data || []);
   };
 
@@ -96,7 +96,7 @@ export default function FollowupsPage() {
         if (error) throw error;
         toast.success('Follow-up updated');
       } else {
-        const { error } = await supabase.from('follow_ups').insert({ ...payload, user_id: user.id });
+        const { error } = await supabase.from('follow_ups').insert({ ...payload, user_id: user.id, org_id: orgId });
         if (error) throw error;
         toast.success('Follow-up scheduled');
       }

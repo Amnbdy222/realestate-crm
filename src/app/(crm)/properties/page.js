@@ -18,8 +18,9 @@ const emptyForm = {
 };
 
 export default function PropertiesPage() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const toast = useToast();
+  const orgId = userProfile?.org_id;
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -42,7 +43,6 @@ export default function PropertiesPage() {
       const { data, error } = await supabase
         .from('properties')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       setProperties(data || []);
@@ -86,7 +86,7 @@ export default function PropertiesPage() {
         if (error) throw error;
         toast.success('Property updated');
       } else {
-        const { error } = await supabase.from('properties').insert({ ...payload, user_id: user.id });
+        const { error } = await supabase.from('properties').insert({ ...payload, user_id: user.id, org_id: orgId });
         if (error) throw error;
         toast.success('Property added');
       }

@@ -4,9 +4,9 @@ import { logger } from '@/lib/logger';
 
 export async function POST(req) {
   try {
-    const { fullName, email, password, adminId } = await req.json();
+    const { fullName, email, password, adminId, orgId } = await req.json();
 
-    if (!email || !password || !fullName || !adminId) {
+    if (!email || !password || !fullName || !adminId || !orgId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -23,7 +23,25 @@ export async function POST(req) {
       }
     );
 
-    // Create the user in Auth
+    // Verify the admin exists and belongs to this org
+    const { data: adminProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id, org_id, role')
+      .eq('id', adminId)
+      .single();
+
+    if (!adminProfile || adminProfile.role !== 'admin' || adminProfile.org_id !== orgId) {
+      return NextResponse.json({ error: 'Unauthorized: invalid admin or org' }, { status: 403 });
+    }
+
+    // Get the org name for metadata
+    const { data: org } = await supabaseAdmin
+      .from('organizations')
+      .select('name')
+      .eq('id', orgId)
+      .single();
+
+    // Create the user in Auth with org_id in metadata
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
@@ -31,7 +49,9 @@ export async function POST(req) {
       user_metadata: {
         full_name: fullName,
         role: 'agent',
-        admin_id: adminId
+        admin_id: adminId,
+        org_id: orgId,
+        org_name: org?.name || ''
       }
     });
 
@@ -39,6 +59,13 @@ export async function POST(req) {
       logger.error('Supabase Admin Error:', error);
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
+    // Explicitly update the profile row's org_id and admin_id to guarantee they are bound,
+    // protecting against trigger execution delays or trigger bugs.
+    await supabaseAdmin
+      .from('profiles')
+      .update({ org_id: orgId, admin_id: adminId })
+      .eq('id', data.user.id);
 
     return NextResponse.json({ 
       message: 'Agent created successfully',

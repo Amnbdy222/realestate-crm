@@ -3,12 +3,15 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import LoginPage from '@/components/LoginPage';
+import LandingPage from '@/components/LandingPage';
+import OrgRegisterPage from '@/components/OrgRegisterPage';
 
 export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
   // Safety: if auth loading takes more than 4s, show login anyway
   const [timedOut, setTimedOut] = useState(false);
+  const [view, setView] = useState('landing'); // 'landing' | 'login' | 'register'
 
   useEffect(() => {
     const t = setTimeout(() => setTimedOut(true), 4000);
@@ -44,5 +47,23 @@ export default function Home() {
 
   if (user) return null;
 
-  return <LoginPage />;
+  if (view === 'login') {
+    return <LoginPage onBackClick={() => setView('landing')} />;
+  }
+
+  if (view === 'register') {
+    return (
+      <OrgRegisterPage 
+        onLoginClick={() => setView('login')} 
+        onBackClick={() => setView('landing')} 
+      />
+    );
+  }
+
+  return (
+    <LandingPage 
+      onLoginClick={() => setView('login')} 
+      onRegisterClick={() => setView('register')} 
+    />
+  );
 }

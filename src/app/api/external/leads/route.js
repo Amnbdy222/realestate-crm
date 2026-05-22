@@ -76,10 +76,22 @@ export async function POST(req) {
       return NextResponse.json({ error: `User with email ${owner_email} not found in the system.` }, { status: 404 });
     }
 
+    // Fetch the target user's profile to retrieve their organization ID
+    const { data: profile, error: profileErr } = await supabaseAdmin
+      .from('profiles')
+      .select('org_id')
+      .eq('id', targetUser.id)
+      .single();
+
+    if (profileErr) {
+      logger.error('Error retrieving target user profile:', profileErr);
+    }
+
     // 5. Prepare lead data
     const finalLeadData = {
       ...leadData,
       user_id: targetUser.id,
+      org_id: profile?.org_id || null,
       source: leadData.source || 'other',
       status: leadData.status || 'new',
       priority: leadData.priority || 'medium',

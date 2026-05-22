@@ -8,8 +8,9 @@ import Modal from '@/components/Modal';
 import styles from './partners.module.css';
 
 export default function PartnersPage() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const toast = useToast();
+  const orgId = userProfile?.org_id;
   
   const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +64,8 @@ export default function PartnersPage() {
     try {
       const { error } = await supabase.from('channel_partners').insert([{
         ...form,
-        user_id: user.id
+        user_id: user.id,
+        org_id: orgId
       }]);
       if (error) throw error;
       toast.success('Channel Partner added');

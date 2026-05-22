@@ -25,6 +25,7 @@ const emptyLead = {
 export default function LeadsPage() {
   const { user, userProfile } = useAuth();
   const toast = useToast();
+  const orgId = userProfile?.org_id;
   const [leads, setLeads] = useState([]);
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +80,7 @@ export default function LeadsPage() {
 
   const loadAgents = async () => {
     try {
-      const { data } = await supabase.from('profiles').select('id, full_name').eq('admin_id', user.id).eq('role', 'agent');
+      const { data } = await supabase.from('profiles').select('id, full_name').eq('org_id', orgId).eq('role', 'agent');
       setAgents(data || []);
     } catch (err) {
       // non-critical, agents list is optional
@@ -203,7 +204,7 @@ export default function LeadsPage() {
 
         const { error } = await supabase
           .from('leads')
-          .insert({ ...leadData, user_id: user.id });
+          .insert({ ...leadData, user_id: user.id, org_id: orgId });
         if (error) throw error;
         toast.success('Lead added successfully');
       }
@@ -220,8 +221,6 @@ export default function LeadsPage() {
   const [communications, setCommunications] = useState([]);
   const [activities, setActivities] = useState([]);
   const [leadTasks, setLeadTasks] = useState([]);
-  const [activeCampaigns, setActiveCampaigns] = useState([]);
-  const [selectedCampaign, setSelectedCampaign] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [viewTab, setViewTab] = useState('comms'); // 'comms' | 'activity' | 'tasks'
   
@@ -236,29 +235,6 @@ export default function LeadsPage() {
     loadCommunications(lead.id);
     loadActivities(lead.id);
     loadLeadTasks(lead.id);
-    loadActiveCampaigns();
-  };
-
-  const loadActiveCampaigns = async () => {
-    const { data } = await supabase.from('drip_campaigns').select('id, name').eq('is_active', true);
-    setActiveCampaigns(data || []);
-  };
-
-  const enrollInCampaign = async () => {
-    if (!selectedCampaign) return toast.warning('Select a campaign first');
-    try {
-      const { error } = await supabase.from('lead_campaigns').insert({
-        lead_id: viewingLead.id,
-        campaign_id: selectedCampaign,
-        user_id: user.id,
-        next_execution_time: new Date().toISOString() // schedule immediately for cron
-      });
-      if (error) throw error;
-      toast.success('Lead enrolled in campaign successfully!');
-      setSelectedCampaign('');
-    } catch (err) {
-      toast.error('Failed to enroll lead in campaign');
-    }
   };
 
   const loadLeadTasks = async (leadId) => {
@@ -312,6 +288,7 @@ export default function LeadsPage() {
       const { error } = await supabase.from('communications').insert([{
         lead_id: viewingLead.id,
         user_id: user.id,
+        org_id: orgId,
         channel: 'whatsapp',
         direction: 'inbound',
         content: summaryContent,
@@ -386,6 +363,8 @@ export default function LeadsPage() {
       } else {
         const { error } = await supabase.from('communications').insert({
           lead_id: viewingLead.id,
+          user_id: user.id,
+          org_id: orgId,
           channel: 'whatsapp',
           direction: 'outbound',
           content: data.message,
@@ -500,6 +479,7 @@ export default function LeadsPage() {
         title,
         description,
         user_id: user.id,
+        org_id: orgId,
       });
     } catch {
       // non-critical, don't block the main action
@@ -518,7 +498,8 @@ export default function LeadsPage() {
         property_type: extractedData?.property_type || 'residential',
         notes: `Extracted from Voice Note: "${transcript}"\n\nAI Extracted Notes: ${extractedData?.notes || ''}`,
         source: 'walk_in',
-        user_id: user.id
+        user_id: user.id,
+        org_id: orgId
       };
       
       const { data, error } = await supabase.from('leads').insert([newLead]);
@@ -944,20 +925,9 @@ export default function LeadsPage() {
                   {aiLoading ? 'Finding...' : <><Home size={14} style={{display:'inline',verticalAlign:'middle'}} /> Auto Recommend Properties</>}
                 </button>
                 <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-                  <Link href="/tasks" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginBottom: 12 }}>
+                  <Link href="/tasks" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
                     Manage Tasks
                   </Link>
-
-                  <div style={{ background: 'var(--bg-secondary)', padding: 12, borderRadius: 'var(--radius-md)' }}>
-                    <h4 style={{ margin: '0 0 8px 0', fontSize: '0.85rem' }}>Enroll in Campaign</h4>
-                    <select className="form-select" value={selectedCampaign} onChange={e => setSelectedCampaign(e.target.value)} style={{ marginBottom: 8, padding: '6px', fontSize: '0.85rem' }}>
-                      <option value="">Select a campaign...</option>
-                      {activeCampaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                    <button className="btn btn-secondary btn-sm" style={{ width: '100%' }} onClick={enrollInCampaign} disabled={!selectedCampaign}>
-                      Enroll Lead
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>
